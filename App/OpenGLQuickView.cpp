@@ -9,65 +9,61 @@
 
 namespace t3d
 {
-	OpenGLQuickView::OpenGLQuickView() :
-		mCapturesCursor(false),
-		mMouseButtonLeftPressed(false)
-	{
-	}
 
+OpenGLQuickView::OpenGLQuickView() : mCapturesCursor(false), mMouseButtonLeftPressed(false)
+{
+}
 
-	void OpenGLQuickView::mousePressEvent(QMouseEvent *ev)
-	{
-		QQuickView::mousePressEvent(ev);
+void OpenGLQuickView::mousePressEvent(QMouseEvent *ev)
+{
+    QQuickView::mousePressEvent(ev);
 
-		if (QWindow::isActive())
-		{
-			if (ev->button() == Qt::LeftButton)
-			{
-				//force the last cursor position to update (zero it out)
-				consumeCursorDelta();
-				mMouseButtonLeftPressed = true;
-			}
-		}
-	}
+    if (QWindow::isActive())
+    {
+        if (ev->button() == Qt::LeftButton)
+        {
+            // force the last cursor position to update (zero it out)
+            consumeCursorDelta();
+            mMouseButtonLeftPressed = true;
+        }
+    }
+}
 
+void OpenGLQuickView::mouseReleaseEvent(QMouseEvent *ev)
+{
+    QQuickView::mouseReleaseEvent(ev);
 
-	void OpenGLQuickView::mouseReleaseEvent(QMouseEvent *ev)
-	{
-		QQuickView::mouseReleaseEvent(ev);
+    if (QWindow::isActive())
+    {
+        if (ev->button() == Qt::LeftButton)
+        {
+            mMouseButtonLeftPressed = false;
+        }
+    }
+}
 
-		if (QWindow::isActive())
-		{
-			if (ev->button() == Qt::LeftButton)
-			{
-				mMouseButtonLeftPressed = false;
-			}
-		}
-	}
+QPoint OpenGLQuickView::consumeCursorDelta()
+{
+    QPoint currentPos = QCursor::pos();
 
+    QPoint delta = QPoint(float(currentPos.x() - mLastCursorPos.x()),
+                          float(currentPos.y() - mLastCursorPos.y()));
 
-	QPoint OpenGLQuickView::consumeCursorDelta()
-	{
-		QPoint currentPos = QCursor::pos();
+    mLastCursorPos = currentPos;
 
-		QPoint delta = QPoint(float(currentPos.x() - mLastCursorPos.x()),
-						  float(currentPos.y() - mLastCursorPos.y()));
+    return delta;
+}
 
-		mLastCursorPos = currentPos;
+void OpenGLQuickView::resetCursorPosition()
+{
+    if (mCapturesCursor == false)
+        return;
 
-        return delta;
-	}
+    QPoint targetPos =
+        QWindow::framePosition() + QPoint(QWindow::width() / 2, QWindow::height() / 2);
 
+    QCursor::setPos(targetPos);
+    mLastCursorPos = targetPos;
+}
 
-	void OpenGLQuickView::resetCursorPosition()
-	{
-		if (mCapturesCursor == false)
-			return;
-
-		QPoint targetPos = QWindow::framePosition()
-						   + QPoint(QWindow::width()/2, QWindow::height()/2);
-
-		QCursor::setPos(targetPos);
-		mLastCursorPos = targetPos;
-	}
 }

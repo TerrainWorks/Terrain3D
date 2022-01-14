@@ -10,22 +10,22 @@
 
 #include <Terrain3D/Library.h>
 
-namespace t3d { namespace world { namespace terrain
+namespace t3d::world::terrain
 {
-	class HeightMap;
 
-	class NormalMap
-	{
-	public:
-		void generate(const HeightMap &hm);
-		int size() { return mNormals.size(); }
-		Vec3f get(int index) { return mNormals[index]; }
+class HeightMap;
 
-	private:
-		QVector<Vec3f> mNormals;
-	};
-}}}
+class NormalMap
+{
+public:
+    void generate(const HeightMap &hm);
+    int size() { return mNormals.size(); }
+    Vec3f get(int index) { return mNormals[index]; }
 
+private:
+    QVector<Vec3f> mNormals;
+};
+
+}
 
 #endif
-

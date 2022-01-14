@@ -9,27 +9,29 @@
 
 namespace t3d
 {
-	class BackgroundUpdater : public QThread
-	{
-		Q_OBJECT
-	public:
-		BackgroundUpdater() : mFrequencyMs(16) {}
-		BackgroundUpdater(int frequencyMs) : mFrequencyMs(frequencyMs) {}
 
-	protected:
-		void run() override
-		{
-			while (isInterruptionRequested() == false)
-			{
-				msleep(mFrequencyMs);
-				emit needsUpdate();
-			}
-		}
+class BackgroundUpdater : public QThread
+{
+    Q_OBJECT
+public:
+    BackgroundUpdater() : mFrequencyMs(16) {}
+    BackgroundUpdater(int frequencyMs) : mFrequencyMs(frequencyMs) {}
 
-	private:
-		int mFrequencyMs;
+protected:
+    void run() override
+    {
+        while (isInterruptionRequested() == false)
+        {
+            msleep(mFrequencyMs);
+            emit needsUpdate();
+        }
+    }
 
-	signals:
-		void needsUpdate();
-	};
+private:
+    int mFrequencyMs;
+
+signals:
+    void needsUpdate();
+};
+
 }

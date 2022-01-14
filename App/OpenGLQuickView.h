@@ -8,32 +8,33 @@
 #ifndef _t3d_OpenGLQuickView_H
 #define _t3d_OpenGLQuickView_H
 
-#include <Terrain3D/Library.h>
 #include <QtQuick/QQuickView>
+#include <Terrain3D/Library.h>
 
 namespace t3d
 {
-	class OpenGLQuickView : public QQuickView
-	{
-	public:
-		OpenGLQuickView();
 
-		void mousePressEvent(QMouseEvent *ev);
-		void mouseReleaseEvent(QMouseEvent *ev);
+class OpenGLQuickView : public QQuickView
+{
+public:
+    OpenGLQuickView();
 
-		QPoint consumeCursorDelta();
-		void resetCursorPosition();
+    void mousePressEvent(QMouseEvent *ev);
+    void mouseReleaseEvent(QMouseEvent *ev);
 
-		void setCapturesCursor(bool capturesCursor) { mCapturesCursor = capturesCursor; }
-		bool capturesCursor() { return mCapturesCursor; }
-		bool mouseButtonLeftPressed() { return mMouseButtonLeftPressed; }
+    QPoint consumeCursorDelta();
+    void resetCursorPosition();
 
-	private:
-		bool mCapturesCursor;
-		QPoint mLastCursorPos;
-		bool mMouseButtonLeftPressed;
-	};
+    void setCapturesCursor(bool capturesCursor) { mCapturesCursor = capturesCursor; }
+    bool capturesCursor() { return mCapturesCursor; }
+    bool mouseButtonLeftPressed() { return mMouseButtonLeftPressed; }
+
+private:
+    bool mCapturesCursor;
+    QPoint mLastCursorPos;
+    bool mMouseButtonLeftPressed;
+};
+
 }
 
 #endif
-

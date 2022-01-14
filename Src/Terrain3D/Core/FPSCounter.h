@@ -13,43 +13,45 @@
 
 namespace t3d
 {
-	class FPSCounter : public QObject
-	{
-	Q_OBJECT
-	Q_PROPERTY(int fps READ fps NOTIFY fpsChanged)
 
-	public:
-		class Timer
-		{
-		public:
-			virtual qint64 elapsed() { return mTimer.elapsed(); }
-			virtual void start() { mTimer.start(); }
+class FPSCounter : public QObject
+{
+    Q_OBJECT
+    Q_PROPERTY(int fps READ fps NOTIFY fpsChanged)
 
-		private:
-			QElapsedTimer mTimer;
-		};
+public:
+    class Timer
+    {
+    public:
+        virtual qint64 elapsed() { return mTimer.elapsed(); }
+        virtual void start() { mTimer.start(); }
 
-	public:
-		FPSCounter() = delete;
-		FPSCounter(qint64 superSampleRate, qint64 subSampleRate,
-				   strong<Timer> timer=strong<Timer>(new Timer));
+    private:
+        QElapsedTimer mTimer;
+    };
 
-		int fps() const { return round(mFps); }
-		void update();
+public:
+    FPSCounter() = delete;
+    FPSCounter(qint64 superSampleRate, qint64 subSampleRate,
+               strong<Timer> timer = strong<Timer>(new Timer));
 
-	signals:
-		void fpsChanged();
+    int fps() const { return round(mFps); }
+    void update();
 
-	private:
-		void refreshFPS();
+signals:
+    void fpsChanged();
 
-	private:
-		qint64 mSuperSampleRate, mSubSampleRate;
-		float mFps;
+private:
+    void refreshFPS();
 
-		QList<int> mSubList;
-		strong<Timer> mTimer;
-	};
+private:
+    qint64 mSuperSampleRate, mSubSampleRate;
+    float mFps;
+
+    QList<int> mSubList;
+    strong<Timer> mTimer;
+};
+
 }
 
 #endif

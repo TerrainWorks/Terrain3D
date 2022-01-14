@@ -14,97 +14,150 @@
 #include <Terrain3D/Library.h>
 #include <Terrain3D/World/Environment.h>
 
+#include <Terrain3D/World/Entity/Renderer.h>
 #include <Terrain3D/World/Terrain/Data.h>
 #include <Terrain3D/World/Terrain/Renderer.h>
-#include <Terrain3D/World/Entity/Renderer.h>
 
-namespace t3d { namespace world
+namespace t3d::world
 {
-	/**
-	 * Represents an all-in-one World instance visualizer. It can move forward/backward and left/right. It can also
-	 * rotate up/down and left/right.
-	 */
-    class Camera : public QObject, protected core::OpenGLFunctions, public vbase::Loadable
-	{
-		Q_OBJECT
 
-	public slots:
-		/**
-		 * @brief Renders everything visible by the camera using the current
-		 * OpenGL context.
-		 */
-		void render();
+/**
+ * Represents an all-in-one World instance visualizer. It can move forward/backward and left/right.
+ * It can also rotate up/down and left/right.
+ */
+class Camera : public QObject, protected core::OpenGLFunctions, public vbase::Loadable
+{
+    Q_OBJECT
 
-	signals:
-		void finishedRendering();
+public slots:
+    /**
+     * @brief Renders everything visible by the camera using the current
+     * OpenGL context.
+     */
+    void render();
 
-	public:
-        Camera();
-		~Camera() {}
+signals:
+    void finishedRendering();
+    void posChanged();
+    void orientationChanged();
 
-		/**
-		 * @brief Gets the instance ready for rendering.
-		 * @param configuration Contains various configuration information
-		 */
-		void init();
-		void refresh();
+public:
+    Camera();
+    ~Camera() {}
 
-		/**
-		 * Does the heavy lifting loading. Loads large resources from file and uploads data to the GPU.
-		 * Must be called after init.
-		 */
-		void prepareForRendering();
+    /**
+     * @brief Gets the instance ready for rendering.
+     * @param configuration Contains various configuration information
+     */
+    void init();
 
-		/**
-		 * @brief Deallocates all memory allocated in OpenGL on the GPU.
-		 */
-		void cleanup();
+    void refresh();
 
-		/**
-		 * @brief Adjusts the aspect ratio according to \p windowWidth and \p windowHeight
-		 */
-		void resize(unsigned windowWidth, unsigned windowHeight);
-		void reloadShaders();
-		void setEnvironment(Environment *environment) { mEnvironment = environment; }
+    /**
+     * Does the heavy lifting loading. Loads large resources from file and uploads data to the GPU.
+     * Must be called after init.
+     */
+    void prepareForRendering();
 
-        vbase::Property<float> pFieldOfView = 50.0f;
-        vbase::Property<float> pNearPlane = 1.0f;
-        vbase::Property<float> pFarPlane = 1200.0f;
-        vbase::Property<float> pAspectRatio = 1.0;
-        vbase::Property<float> pMaxVerticalAngle = 90.0f;
+    /**
+     * @brief Deallocates all memory allocated in OpenGL on the GPU.
+     */
+    void cleanup();
 
-        vbase::Property<Vec3f> pPos;
+    /**
+     * @brief Adjusts the aspect ratio according to \p windowWidth and \p windowHeight
+     */
+    void resize(unsigned windowWidth, unsigned windowHeight);
 
-        Property_Set(Vec2f, pOrientationAngle, Vec2f(0,0),
-        {
-             pOrientationAngle.raw() = _newValue;
-             normalizeAngles();
-        })
-		
-		Mat4 orientaion() const;
+    void reloadShaders();
 
-		void lookAt(Vec3f position);
-		Vec3f forward() const;
-		Vec3f right() const;
-		Vec3f up() const;
+    void setEnvironment(Environment *environment) { mEnvironment = environment; }
 
-		void setMode(terrain::Mode mode) { mTerrainRenderer.pMode = mode; }
-		terrain::Mode mode() { return mTerrainRenderer.pMode; }
+    float fieldOfView() const { return mFieldOfView; }
 
-		terrain::Renderer& terrainRenderer() { return mTerrainRenderer; }
+    void setFieldOfView(float fieldOfView) { mFieldOfView = fieldOfView; }
 
-	private:
-		Environment *mEnvironment;
-		terrain::Renderer mTerrainRenderer;
-		entity::Renderer mEntityRenderer;
+    float nearPlane() const { return mNearPlane; }
 
-	private:
-		Mat4 totalMatrix() const;
-		Mat4 perspectiveMatrix() const;
-		Mat4 viewMatrix() const;
-		void normalizeAngles();
-	};
-}}
+    float farPlane() const { return mFarPlane; }
+
+    float aspectRatio() const { return mAspectRatio; }
+
+    float maxVerticalAngle() const { return mMaxVerticalAngle; }
+
+    Vec3f const &pos() const { return mPos; }
+
+    void setPosX(float x)
+    {
+        mPos.x = x;
+        emit posChanged();
+    }
+
+    void setPosY(float y)
+    {
+        mPos.y = y;
+        emit posChanged();
+    }
+
+    void setPosZ(float z)
+    {
+        mPos.z = z;
+        emit posChanged();
+    }
+
+    void addPos(const Vec3f &pos)
+    {
+        mPos += pos;
+        emit posChanged();
+    }
+
+    Vec2f const &orientationAngle() const { return mOrientationAngle; }
+
+    void setOrientationAngle(const Vec2f &angle)
+    {
+        mOrientationAngle = angle;
+        normalizeAngles();
+        emit orientationChanged();
+    }
+
+    void addOrientationAngle(const Vec2f &angle)
+    {
+        mOrientationAngle += angle;
+        normalizeAngles();
+        emit orientationChanged();
+    }
+
+    Mat4 orientaion() const;
+
+    void lookAt(Vec3f position);
+    Vec3f forward() const;
+    Vec3f right() const;
+    Vec3f up() const;
+
+    void setMode(terrain::Mode mode) { mTerrainRenderer.setMode(mode); }
+    terrain::Mode mode() { return mTerrainRenderer.mode(); }
+
+    terrain::Renderer &terrainRenderer() { return mTerrainRenderer; }
+
+private:
+    Environment *mEnvironment;
+    terrain::Renderer mTerrainRenderer;
+    entity::Renderer mEntityRenderer;
+
+    float mFieldOfView = 50.0f;
+    float mNearPlane = 1.0f;
+    float mFarPlane = 1200.0f;
+    float mAspectRatio = 1.0;
+    float mMaxVerticalAngle = 90.0f;
+    Vec3f mPos = Vec3f(0.0f, 25.0f, 75.0f);
+    Vec2f mOrientationAngle = Vec2f(0.0f, 0.0f);
+
+    Mat4 totalMatrix() const;
+    Mat4 perspectiveMatrix() const;
+    Mat4 viewMatrix() const;
+    void normalizeAngles();
+};
+
+}
 
 #endif
-

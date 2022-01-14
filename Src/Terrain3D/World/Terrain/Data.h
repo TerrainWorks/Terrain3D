@@ -14,40 +14,93 @@
 #include <Terrain3D/World/Terrain/HeightMap.h>
 #include <Terrain3D/World/Terrain/LightMap.h>
 
-namespace t3d { namespace world { namespace terrain
+namespace t3d::world::terrain
 {
-	class Data : public QObject
-	{
-		Q_OBJECT
 
-	public:
-		void cleanup() { /*nothing to cleanup*/ }
+class Data : public QObject
+{
+    Q_OBJECT
 
-		void resetHeightMap(HeightMap &heightMap) { mHeightMap = heightMap; emit heightMapChanged(); }	//TODO really need a move constructor there
-		const HeightMap& heightMap() const { return mHeightMap; }
-		void resetLightMap(LightMap &lightMap) { mLightMap = lightMap; emit lightMapChanged(); }
-		const LightMap &lightMap() const { return mLightMap; }
+public:
+    void cleanup()
+    { /*nothing to cleanup*/
+    }
 
-		typedef QMap<float, GLubyte> HeightIndex;
-		void computeTextureIndicies(const HeightIndex &heightIndex);
+    void resetHeightMap(HeightMap &heightMap)
+    {
+        mHeightMap = heightMap;
+        emit heightMapChanged();
+    } // TODO really need a move constructor there
+    const HeightMap &heightMap() const { return mHeightMap; }
+    void resetLightMap(LightMap &lightMap)
+    {
+        mLightMap = lightMap;
+        emit lightMapChanged();
+    }
+    const LightMap &lightMap() const { return mLightMap; }
 
-		typedef QVector<GLubyte> TextureIndicies;
-		TextureIndicies& textureIndicies() { return mTextureIndicies; }
+    typedef QMap<float, GLubyte> HeightIndex;
+    void computeTextureIndicies(const HeightIndex &heightIndex);
 
-        vbase::Property<int> pTextureMapResolution;
-        vbase::Property<float> pHeightScale;
-        vbase::Property<int> pSpanSize;
-        vbase::Property<int> pChunkSize;
+    typedef QVector<GLubyte> TextureIndicies;
+    TextureIndicies &textureIndicies() { return mTextureIndicies; }
 
-	signals:
-		void heightMapChanged();
-		void lightMapChanged();
+    int textureMapResolution() const { return mTextureMapResolution; }
 
-	private:
-		HeightMap mHeightMap;
-		LightMap mLightMap;
-		TextureIndicies mTextureIndicies;		
-	};
-}}}
+    void setTextureMapResolution(int resolution)
+    {
+        mTextureMapResolution = resolution;
+        emit textureMapResolutionChanged();
+    }
+
+    float heightScale() const { return mHeightScale; }
+
+    void setHeightScale(float heightScale)
+    {
+        mHeightScale = heightScale;
+        emit heightScaleChanged();
+    }
+
+    int spanSize() const { return mSpanSize; }
+
+    void setSpanSize(int spanSize)
+    {
+        mSpanSize = spanSize;
+        emit spanSizeChanged();
+    }
+
+    int chunkSize() const { return mChunkSize; }
+
+    void setChunkSize(int chunkSize)
+    {
+        mChunkSize = chunkSize;
+        emit chunkSizeChanged();
+    }
+
+signals:
+    void heightMapChanged();
+
+    void lightMapChanged();
+
+    void textureMapResolutionChanged();
+
+    void heightScaleChanged();
+
+    void spanSizeChanged();
+
+    void chunkSizeChanged();
+
+private:
+    HeightMap mHeightMap;
+    LightMap mLightMap;
+    TextureIndicies mTextureIndicies;
+
+    int mTextureMapResolution;
+    float mHeightScale;
+    int mSpanSize;
+    int mChunkSize;
+};
+
+}
 
 #endif

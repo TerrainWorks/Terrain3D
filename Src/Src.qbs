@@ -2,9 +2,10 @@ import qbs 1.0
 
 StaticLibrary {
     name: "Terrain3D_Lib"
-	cpp.cxxLanguageVersion: "c++14"
+    cpp.cxxLanguageVersion: "c++17"
 	cpp.includePaths: [
         "../Src/",
+        "../Ext/glm",
         "../Ext/ValpineBase/Ext",
         "../Ext/ValpineBase/Src"
 	]

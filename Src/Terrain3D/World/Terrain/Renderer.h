@@ -11,92 +11,114 @@
 #include <ValpineBase/Loadable.h>
 #include <ValpineBase/Property.h>
 
-#include <Terrain3D/Library.h>
 #include <Terrain3D/Core/ShaderProgram.h>
+#include <Terrain3D/Library.h>
 #include <Terrain3D/World/Terrain/Data.h>
 #include <Terrain3D/World/Terrain/Water/Renderer.h>
 
-namespace t3d { namespace world { namespace terrain
+namespace t3d::world::terrain
 {
-	enum class Mode
-	{
-		Normal,
-		WireFrame
-	};
 
+enum class Mode
+{
+    Normal,
+    WireFrame
+};
 
-    class Renderer : public core::ShaderProgram, public vbase::Loadable
-	{
-		Q_OBJECT
+class Renderer : public core::ShaderProgram, public vbase::Loadable
+{
+    Q_OBJECT
 
-	public:
-		Renderer();
-		~Renderer() {}
+public:
+    Renderer();
+    ~Renderer() {}
 
-		void init(Data *terrainData);
-		void refresh();
+    void init(Data *terrainData);
+    void refresh();
 
-		void reloadShaders() override;
-		
-		void cleanup();
-		void prepareForRendering();
-		void render(const Vec3f &cameraPos, const Mat4 &modelViewMatrix, const Mat4 &perspectiveMatrix);
+    void reloadShaders() override;
 
-        vbase::Property<float> pLodFactor = 1.0f;
-        vbase::Property<float> pLodNear = 50.0f;
-        vbase::Property<float> pLodFar = 450.0f;
-        vbase::Property<Mode> pMode = Mode::Normal;
+    void cleanup();
+    void prepareForRendering();
+    void render(const Vec3f &cameraPos, const Mat4 &modelViewMatrix, const Mat4 &perspectiveMatrix);
 
-	protected:
-		void addShaders() override;
-		void queryUniformLocations() override;
-		void refreshUniformValues() override;
+    void setLodFactor(float lodFactor)
+    {
+        mLodFactor = lodFactor;
+        this->enqueueUniformValueChange(&mUniforms.lodFactor, mLodFactor);
+    }
 
-	private:
-		Q_DISABLE_COPY(Renderer)
+    void setLodNear(float lodNear)
+    {
+        mLodNear = lodNear;
+        this->enqueueUniformValueChange(&mUniforms.lodNear, mLodNear);
+    }
 
-		Data *mTerrainData;
-		water::Renderer mWaterRenderer;
+    void setLodFar(float lodFar)
+    {
+        mLodFar = lodFar;
+        this->enqueueUniformValueChange(&mUniforms.lodFar, mLodFar);
+    }
 
-		GLuint mVao;
-		GLuint mVbo[2];
+    Mode mode() const { return mMode; }
 
-		struct
-		{
-			GLint mvMatrix;
-			GLint projMatrix;
+    void setMode(Mode mode) { mMode = mode; }
 
-			GLint terrainSize;
-			GLint chunkSize;
-            GLint lodFactor;
-            GLint lodNear;
-            GLint lodFar;
-			GLint cameraPos;
-			GLint heightScale;
-			GLint spanSize;
+protected:
+    void addShaders() override;
+    void queryUniformLocations() override;
+    void refreshUniformValues() override;
 
-			GLint textureMapResolution;
-			GLint heightMapSize;
-		} mUniforms;
+private:
+    Q_DISABLE_COPY(Renderer)
 
-		struct
-		{
-			GLuint heightMap;
-			GLuint lightMap;
-			GLuint indicies;
-			GLuint terrain;
-		} mTextures;
+    Data *mTerrainData;
+    water::Renderer mWaterRenderer;
 
-		struct
-		{
-			bool terrainData = false;
-		} mInvalidations;
+    GLuint mVao;
+    GLuint mVbo[2];
 
-	private:
-		void loadTextures();
-		void uploadTerrainData();
-	};
-}}}
+    float mLodFactor = 1.0f;
+    float mLodNear = 50.0f;
+    float mLodFar = 450.0f;
+    Mode mMode = Mode::Normal;
+
+    struct
+    {
+        GLint mvMatrix;
+        GLint projMatrix;
+
+        GLint terrainSize;
+        GLint chunkSize;
+        GLint lodFactor;
+        GLint lodNear;
+        GLint lodFar;
+        GLint cameraPos;
+        GLint heightScale;
+        GLint spanSize;
+
+        GLint textureMapResolution;
+        GLint heightMapSize;
+    } mUniforms;
+
+    struct
+    {
+        GLuint heightMap;
+        GLuint lightMap;
+        GLuint indicies;
+        GLuint terrain;
+    } mTextures;
+
+    struct
+    {
+        bool terrainData = false;
+    } mInvalidations;
+
+private:
+    void loadTextures();
+    void uploadTerrainData();
+};
+
+}
 
 #endif
-

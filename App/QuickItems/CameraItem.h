@@ -11,39 +11,39 @@
 #include <QtQuick/QQuickFramebufferObject>
 #include <Terrain3D/World/Camera.h>
 
-
-namespace t3d { namespace QuickItems
+namespace t3d::QuickItems
 {
-	class CameraItem : public QQuickFramebufferObject
-	{
-		Q_OBJECT
-		Q_PROPERTY(bool isLoaded READ isLoaded NOTIFY isLoadedChanged)
-		Q_PROPERTY(bool isFrozen READ isFrozen WRITE setIsFrozen)
 
-	public:
-		CameraItem();
+class CameraItem : public QQuickFramebufferObject
+{
+    Q_OBJECT
+    Q_PROPERTY(bool isLoaded READ isLoaded NOTIFY isLoadedChanged)
+    Q_PROPERTY(bool isFrozen READ isFrozen WRITE setIsFrozen)
 
-		//properties
-		bool isLoaded() const { return mCamera.get() != nullptr; }
-		bool isFrozen() const { return mIsFrozen; }
-		void setIsFrozen(bool isFrozen) { mIsFrozen = isFrozen; }
+public:
+    CameraItem();
 
-		weak<world::Camera> createCamera();
-		weak<world::Camera> camera() { return mCamera; }
-		void cleanup();
+    // properties
+    bool isLoaded() const { return mCamera.get() != nullptr; }
+    bool isFrozen() const { return mIsFrozen; }
+    void setIsFrozen(bool isFrozen) { mIsFrozen = isFrozen; }
 
-	private:
-		bool mIsFrozen;
-		bool mIsSynced = false;
-		strong<world::Camera> mCamera;
+    weak<world::Camera> createCamera();
+    weak<world::Camera> camera() { return mCamera; }
+    void cleanup();
 
-	signals:
-		void isLoadedChanged();
+private:
+    bool mIsFrozen;
+    bool mIsSynced = false;
+    strong<world::Camera> mCamera;
 
+signals:
+    void isLoadedChanged();
 
-	public:
-		QQuickFramebufferObject::Renderer *createRenderer() const;
-	};
-}}
+public:
+    QQuickFramebufferObject::Renderer *createRenderer() const;
+};
+
+}
 
 #endif

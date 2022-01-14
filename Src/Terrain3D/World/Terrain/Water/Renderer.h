@@ -8,68 +8,68 @@
 #ifndef _t3d_world_terrain_water_Renderer_H
 #define _t3d_world_terrain_water_Renderer_H
 
-#include <Terrain3D/Library.h>
 #include <Terrain3D/Core/ShaderProgram.h>
+#include <Terrain3D/Library.h>
 #include <Terrain3D/World/Terrain/Data.h>
 
 #include <ValpineBase/Loadable.h>
 
-namespace t3d { namespace world { namespace terrain { namespace water
+namespace t3d::world::terrain::water
 {
-    class Renderer : public core::ShaderProgram, public vbase::Loadable
-	{
-	public:
-		Renderer() {}
-		~Renderer() {}
 
-		void init(Data *terrainData);
-		void refresh();
+class Renderer : public core::ShaderProgram, public vbase::Loadable
+{
+public:
+    Renderer() {}
+    ~Renderer() {}
 
-		void cleanup();
-        void render(const Mat4 &modelViewMatrix, const Mat4 &perspectiveMatrix);
+    void init(Data *terrainData);
+    void refresh();
 
-        vbase::Property<float> pWaterLevel = 0.3f;
+    void cleanup();
+    void render(const Mat4 &modelViewMatrix, const Mat4 &perspectiveMatrix);
 
-	protected:
-		void addShaders() override;
-		void queryUniformLocations() override;
-		void refreshUniformValues() override;
+protected:
+    void addShaders() override;
+    void queryUniformLocations() override;
+    void refreshUniformValues() override;
 
-	private:
-		Q_DISABLE_COPY(Renderer)
+private:
+    Q_DISABLE_COPY(Renderer)
 
-		GLuint mVao;
+    GLuint mVao;
+    float mWaterLevel = 0.3f;
 
-		struct
-		{
-			GLint mvMatrix;
-			GLint projMatrix;
-			GLint size;
-			GLint spanSize;
-			GLint heightScale;
-			GLint waterLevel;
-			GLint timeDelta;
-		} mUniforms;
+    struct
+    {
+        GLint mvMatrix;
+        GLint projMatrix;
+        GLint size;
+        GLint spanSize;
+        GLint heightScale;
+        GLint waterLevel;
+        GLint timeDelta;
+    } mUniforms;
 
-		struct
-		{
-			GLuint water;
-		} mTextures;
+    struct
+    {
+        GLuint water;
+    } mTextures;
 
-		struct
-		{
-			bool terrainData = false;
-		} mInvalidations;
+    struct
+    {
+        bool terrainData = false;
+    } mInvalidations;
 
-		Data *mTerrainData;
-		QElapsedTimer mElapsedTimer;
+    Data *mTerrainData;
+    QElapsedTimer mElapsedTimer;
 
-	private:
-		void loadShader(const QString &filename, QOpenGLShader::ShaderType shaderType);
-		void loadShaders();
-		void loadTextures();
-	};
-}}}}
+private:
+    void loadShader(const QString &filename, QOpenGLShader::ShaderType shaderType);
+    void loadShaders();
+    void loadTextures();
+};
+
+}
 
 #endif
-

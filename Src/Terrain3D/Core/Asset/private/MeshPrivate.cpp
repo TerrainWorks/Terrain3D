@@ -8,221 +8,211 @@
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
 
-#include "MeshPrivate.h"
-#include "SubMesh.h"
 #include "FaceData.h"
 #include "MaterialData.h"
+#include "MeshPrivate.h"
 #include "OBJ.h"
+#include "SubMesh.h"
 
-namespace t3d { namespace asset
+namespace t3d::asset
 {
-	const GLuint mesh_p::PrimitiveRestartIndex = 900000000;
 
-    mesh_p::MeshPrivate(Mesh *mesh) : mMesh(mesh), mFaceData(new FaceData)
+const GLuint mesh_p::PrimitiveRestartIndex = 900000000;
+
+mesh_p::MeshPrivate(Mesh *mesh) : mMesh(mesh), mFaceData(new FaceData)
+{
+}
+
+void mesh_p::batchRender(const QVector<Mat4> &matricies)
+{
+    bindForRender();
+
+    for (strong<SubMesh> subMesh : mSubMesh)
     {
+        // find the material associated with this sub mesh
+        strong<MaterialData> material;
+        for (strong<MaterialData> m : mMaterials)
+        {
+            if (m->mName == subMesh->mMaterial)
+            {
+                material = m;
+                break;
+            }
+        }
+
+        glUniform1i(mUniforms.indexCount, subMesh->mIndexCount);
+        if (material)
+            material->bind();
+        subMesh->bind();
+
+        for (const Mat4 &mat : matricies)
+        {
+            Mat4 resultMatrix = mat * glm::scale(Mat4(1.0f), mBaseScale);
+
+            glUniformMatrix4fv(mUniforms.matrixCamera, 1, GL_FALSE, glm::value_ptr(resultMatrix));
+            glUniformMatrix4fv(mUniforms.matrixModel, 1, GL_FALSE,
+                               glm::value_ptr(glm::rotate(Mat4(1.0f), 0.0f, Vec3f(0, 1, 0))));
+
+            subMesh->render();
+        }
+
+        subMesh->unbind();
+        if (material)
+            material->release();
     }
 
+    unbindAfterRender();
+}
 
-	void mesh_p::batchRender(const QVector<Mat4> &matricies)
-	{
-		bindForRender();
+void mesh_p::init()
+{
+    initializeOpenGLFunctions();
 
-		for (strong<SubMesh> subMesh : mSubMesh)
-		{
-			//find the material associated with this sub mesh
-			strong<MaterialData> material;
-			for (strong<MaterialData> m : mMaterials)
-			{
-				if (m->mName == subMesh->mMaterial)
-				{
-					material = m;
-					break;
-				}
-			}
+    loadShaders();
+    mProgram.bind();
+    {
+        mUniforms.matrixCamera = mProgram.uniformLocation("cameraMatrix");
+        mUniforms.matrixModel = mProgram.uniformLocation("modelMatrix");
+        mUniforms.indexCount = mProgram.uniformLocation("indexCount");
 
-			glUniform1i(mUniforms.indexCount, subMesh->mIndexCount);
-			if (material) material->bind();
-			subMesh->bind();
+        uploadData();
 
-			for (const Mat4 &mat : matricies)
-			{
-				Mat4 resultMatrix = mat * glm::scale(mBaseScale);
+        glEnable(GL_PRIMITIVE_RESTART);
+        glPrimitiveRestartIndex(PrimitiveRestartIndex);
+    }
 
-				glUniformMatrix4fv(mUniforms.matrixCamera, 1, GL_FALSE, glm::value_ptr(resultMatrix));
-				glUniformMatrix4fv(mUniforms.matrixModel, 1, GL_FALSE,
-									glm::value_ptr(glm::rotate(Mat4(), 0.0f, Vec3f(0, 1, 0))));
+    mProgram.release();
+}
 
-				
-				subMesh->render();
-			}
+bool mesh_p::initWithFile(const QString &filepath)
+{
+    QFile file(filepath);
+    if (!file.open(QIODevice::ReadOnly))
+        return false;
 
-			subMesh->unbind();
-			if (material) material->release();
-		}
+    // read values from the JSON T3D file
+    QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
+    QJsonObject object = doc.object();
+    {
+        setName(object["name"].toString());
+        QJsonArray scale = object["baseScale"].toArray();
+        setBaseScale(Vec3f(scale[0].toDouble(), scale[1].toDouble(), scale[2].toDouble()));
+        QJsonObject boundingSphere = object["boundingSphere"].toObject();
+        mMesh->boundingSphere().radius = boundingSphere["radius"].toDouble();
+        QJsonArray bsOffset = boundingSphere["offset"].toArray();
+        mMesh->boundingSphere().offset =
+            Vec3f(bsOffset[0].toDouble(), bsOffset[1].toDouble(), bsOffset[2].toDouble());
+    }
 
-		unbindAfterRender();
-	}
+    return OBJ().initWithFile(
+        QFileInfo(filepath).absolutePath() + "/" + object["meshFile"].toString(), this);
+}
 
+void mesh_p::setFilepath(const QString &filepath)
+{
+    mFilepath = filepath;
+    mContainingDirectory = QFileInfo(filepath).absolutePath() + "/";
+}
 
-	void mesh_p::init()
-	{
-		initializeOpenGLFunctions();
+void mesh_p::makeSubMesh()
+{
+    mSubMesh.append(strong<SubMesh>(new SubMesh));
+}
 
+strong<mesh_p::SubMesh> mesh_p::currentSubMesh()
+{
+    return mSubMesh.last();
+}
 
-		loadShaders();
-		mProgram.bind();
-		{
-			mUniforms.matrixCamera = mProgram.uniformLocation("cameraMatrix");
-			mUniforms.matrixModel = mProgram.uniformLocation("modelMatrix");
-			mUniforms.indexCount = mProgram.uniformLocation("indexCount");
-			
-			uploadData();
+void mesh_p::addVertexPosition(const mesh_p::Vertex &vertex)
+{
+    mFaceData->mVertecies.push_back(vertex);
+}
 
-			glEnable(GL_PRIMITIVE_RESTART);
-			glPrimitiveRestartIndex(PrimitiveRestartIndex);
-		}
+void mesh_p::addVertexNormal(const mesh_p::Vertex &normal)
+{
+    mFaceData->mVertexNormals.push_back(normal);
+}
 
-		mProgram.release();
-	}
+void mesh_p::addTextureCoordinate(const mesh_p::Vertex &texCoord)
+{
+    mFaceData->mTextureCoordinates.push_back(texCoord);
+}
 
+void mesh_p::loadShaders()
+{
+    QString basePath = gDefaultPathShaders + "/mesh/";
 
-	bool mesh_p::initWithFile(const QString &filepath)
-	{
-		QFile file(filepath);
-		if (!file.open(QIODevice::ReadOnly))
-			return false;
+    QOpenGLShader vertexShader(QOpenGLShader::Vertex);
+    vertexShader.compileSourceFile(basePath + "mesh.vert.glsl");
+    mProgram.addShader(&vertexShader);
 
-		//read values from the JSON T3D file
-		QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
-		QJsonObject object = doc.object();
-		{
-			setName(object["name"].toString());
-			QJsonArray scale = object["baseScale"].toArray();
-			setBaseScale(Vec3f(scale[0].toDouble(), scale[1].toDouble(), scale[2].toDouble()));
-			QJsonObject boundingSphere = object["boundingSphere"].toObject();
-				mMesh->boundingSphere().radius = boundingSphere["radius"].toDouble();
-				QJsonArray bsOffset = boundingSphere["offset"].toArray();
-				mMesh->boundingSphere().offset = Vec3f(bsOffset[0].toDouble(), bsOffset[1].toDouble(), bsOffset[2].toDouble());
-		}
+    QOpenGLShader fragmentShader(QOpenGLShader::Fragment);
+    fragmentShader.compileSourceFile(basePath + "mesh.frag.glsl");
+    mProgram.addShader(&fragmentShader);
 
-		return OBJ().initWithFile(QFileInfo(filepath).absolutePath() + "/" + object["meshFile"].toString(), this);
-	}
+    if (mProgram.link() == false)
+        qDebug() << "Problem linking Mesh mesh shadres";
 
+    mProgram.bind();
 
-	void mesh_p::setFilepath(const QString &filepath)
-	{
-		mFilepath = filepath;
-		mContainingDirectory = QFileInfo(filepath).absolutePath() + "/";
-	}
+    glUniform1i(mProgram.uniformLocation("vertexPositions"), 2);
+    glUniform1i(mProgram.uniformLocation("vertexNormals"), 3);
+    glUniform1i(mProgram.uniformLocation("texCoordinates"), 4);
+    glUniform1i(mProgram.uniformLocation("material"), 5);
 
+    mProgram.release();
 
-	void mesh_p::makeSubMesh()
-	{
-		mSubMesh.append(strong<SubMesh>(new SubMesh));
-	}
-	
-	
-	strong<mesh_p::SubMesh> mesh_p::currentSubMesh()
-	{
-		return mSubMesh.last();
-	}
+    // TODO swtich this to use the ShaderProgram class
+}
 
+void mesh_p::uploadData()
+{
+    checkForErrors();
 
-	void mesh_p::addVertexPosition(const mesh_p::Vertex &vertex)
-	{
-		mFaceData->mVertecies.push_back(vertex);
-	}
+    mFaceData->uploadData();
 
+    for (strong<MaterialData> material : mMaterials)
+        material->uploadMaterialData(mContainingDirectory);
 
-	void mesh_p::addVertexNormal(const mesh_p::Vertex &normal)
-	{
-		mFaceData->mVertexNormals.push_back(normal);
-	}
+    for (strong<SubMesh> subMesh : mSubMesh)
+        subMesh->uploadData();
+}
 
+void mesh_p::checkForErrors()
+{
+    QString error;
 
-	void mesh_p::addTextureCoordinate(const mesh_p::Vertex &texCoord)
-	{
-		mFaceData->mTextureCoordinates.push_back(texCoord);
-	}
+    for (strong<SubMesh> subMesh : mSubMesh)
+    {
+        subMesh->checkForErrors(mFaceData.get(), error);
 
-	
-	void mesh_p::loadShaders()
-	{
-		QString basePath = gDefaultPathShaders + "/mesh/";
+        if (!error.isEmpty())
+            return;
+    }
 
-		QOpenGLShader vertexShader(QOpenGLShader::Vertex);
-		vertexShader.compileSourceFile(basePath + "mesh.vert.glsl");
-		mProgram.addShader(&vertexShader);
+    if (mFaceData->mVertecies.count() == 0)
+        error = QString("No vertex positions defined");
+    else if (mFaceData->mVertexNormals.count() == 0)
+        error = QString("No vertex normals defined");
+    else if (mFaceData->mTextureCoordinates.count() == 0)
+        error = QString("No texture coordinates defined");
 
-		QOpenGLShader fragmentShader(QOpenGLShader::Fragment);
-		fragmentShader.compileSourceFile(basePath + "mesh.frag.glsl");
-		mProgram.addShader(&fragmentShader);
+    if (!error.isEmpty())
+    {
+        System::fatal(mFilepath + QString(" - Error: ") + error);
+    }
+}
 
-		if (mProgram.link() == false)
-			qDebug() << "Problem linking Mesh mesh shadres";
+void mesh_p::bindForRender()
+{
+    mProgram.bind();
+    mFaceData->bind();
+}
 
-		mProgram.bind();
+void mesh_p::unbindAfterRender()
+{
+    mProgram.release();
+}
 
-		glUniform1i(mProgram.uniformLocation("vertexPositions"), 2);
-		glUniform1i(mProgram.uniformLocation("vertexNormals"), 3);
-		glUniform1i(mProgram.uniformLocation("texCoordinates"), 4);
-		glUniform1i(mProgram.uniformLocation("material"), 5);
-
-		mProgram.release();
-
-		//TODO swtich this to use the ShaderProgram class
-	}
-
-
-	void mesh_p::uploadData()
-	{
-		checkForErrors();
-
-		mFaceData->uploadData();
-
-		for (strong<MaterialData> material : mMaterials)
-			material->uploadMaterialData(mContainingDirectory);
-
-		for (strong<SubMesh> subMesh : mSubMesh)
-			subMesh->uploadData();
-	}
-
-
-	void mesh_p::checkForErrors()
-	{
-		QString error;
-
-		for (strong<SubMesh> subMesh : mSubMesh)
-		{
-			subMesh->checkForErrors(mFaceData.get(), error);
-
-			if (!error.isEmpty())
-				return;
-		}
-
-		if (mFaceData->mVertecies.count() == 0)
-			error = QString("No vertex positions defined");
-		else if (mFaceData->mVertexNormals.count() == 0)
-			error = QString("No vertex normals defined");
-		else if (mFaceData->mTextureCoordinates.count() == 0)
-			error = QString("No texture coordinates defined");
-
-		if (!error.isEmpty())
-		{
-			System::fatal(mFilepath + QString(" - Error: ") + error);
-		}
-	}
-
-
-	void mesh_p::bindForRender()
-	{
-		mProgram.bind();
-		mFaceData->bind();
-	}
-
-
-	void mesh_p::unbindAfterRender()
-	{
-		mProgram.release();
-	}
-}}
+}

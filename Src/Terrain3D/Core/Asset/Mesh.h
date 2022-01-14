@@ -8,43 +8,44 @@
 #ifndef _t3d_Core_Asset_Mesh_H
 #define _t3d_Core_Asset_Mesh_H
 
-#include <Terrain3D/Library.h>
 #include <Terrain3D/Core/OpenGLFunctions.h>
+#include <Terrain3D/Library.h>
 
-namespace t3d { namespace asset
+namespace t3d::asset
 {
-	class Manager;
 
-	class Mesh
-	{
-	private:
-		struct BoundingSphere
-		{
-			float radius;
-			Vec3f offset;
-		};
+class Manager;
 
-	public:
-		friend class Manager;
-		Mesh();
+class Mesh
+{
+private:
+    struct BoundingSphere
+    {
+        float radius;
+        Vec3f offset;
+    };
 
-		bool init(Manager *manager, const QString &filepath);
-		void queueRender(const Mat4 &totalMatrix);
+public:
+    friend class Manager;
+    Mesh();
 
-		QString name() const;
-		BoundingSphere& boundingSphere() { return mBoundingSphere; }
-		const BoundingSphere& boundingSphere() const { return mBoundingSphere; }
+    bool init(Manager *manager, const QString &filepath);
+    void queueRender(const Mat4 &totalMatrix);
 
-		class MeshPrivate;
+    QString name() const;
+    BoundingSphere &boundingSphere() { return mBoundingSphere; }
+    const BoundingSphere &boundingSphere() const { return mBoundingSphere; }
 
-	private:
-		strong<MeshPrivate> mPrivate;
-		Manager *mManager = nullptr;
-		void batchRender(const QVector<Mat4> &matricies);
+    class MeshPrivate;
 
-		BoundingSphere mBoundingSphere;
-	};
-}}
+private:
+    strong<MeshPrivate> mPrivate;
+    Manager *mManager = nullptr;
+    void batchRender(const QVector<Mat4> &matricies);
+
+    BoundingSphere mBoundingSphere;
+};
+
+}
 
 #endif
-

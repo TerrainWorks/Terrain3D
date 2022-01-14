@@ -7,152 +7,137 @@
 
 #include "Camera.h"
 
-namespace t3d { namespace world
+namespace t3d::world
 {
-    Camera::Camera()
-    {
 
-        lookAt(Vec3f(60, 20, 60));
+Camera::Camera()
+{
+    mOrientationAngle = Vec2f(2.3 * glm::pi<float>() / 3, 0.5f);
+}
+
+void Camera::init()
+{
+    vbase::Loadable::Begin b(this);
+    initializeOpenGLFunctions();
+
+    mTerrainRenderer.init(&mEnvironment->terrainData());
+    mEntityRenderer.setManager(&mEnvironment->entityManager());
+}
+
+void Camera::refresh()
+{
+    vbase::Loadable::Begin b(this);
+    mTerrainRenderer.refresh();
+}
+
+void Camera::prepareForRendering()
+{
+    mTerrainRenderer.prepareForRendering();
+}
+
+void Camera::cleanup()
+{
+    mTerrainRenderer.cleanup();
+}
+
+void Camera::render()
+{
+    if (pIsLoading)
+    {
+        qWarning("Trying to render Camera while loading...rendering canceled.");
+        return;
     }
 
-	void Camera::init()
-	{
-        vbase::Loadable::Begin b(this);
-		initializeOpenGLFunctions();
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE);
+    glDepthFunc(GL_LEQUAL);
 
-		mTerrainRenderer.init(&mEnvironment->terrainData());
-        mEntityRenderer.setManager(&mEnvironment->entityManager());
-	}
+    glClearColor(1.0f, 0.9f, 0.8f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
+    mTerrainRenderer.render(mPos, viewMatrix(), perspectiveMatrix());
 
-	void Camera::refresh()
-	{
-        vbase::Loadable::Begin b(this);
-		mTerrainRenderer.refresh();
-	}
+    mEntityRenderer.renderAll(totalMatrix());
+    mEnvironment->assetManager().renderAllQueued();
 
+    emit finishedRendering();
+}
 
-	void Camera::prepareForRendering()
-	{
-		mTerrainRenderer.prepareForRendering();
-	}
+void Camera::resize(unsigned windowWidth, unsigned windowHeight)
+{
+    mAspectRatio = (float)windowWidth / (float)windowHeight;
+    glViewport(0, 0, (GLsizei)windowWidth, (GLsizei)windowHeight);
+}
 
+void Camera::reloadShaders()
+{
+    vbase::Loadable::Begin b(this);
+    mTerrainRenderer.reloadShaders();
+}
 
-	void Camera::cleanup()
-	{
-		mTerrainRenderer.cleanup();
-	}
+Mat4 Camera::orientaion() const
+{
+    Mat4 orientation(1.0f);
+    orientation = glm::rotate(orientation, mOrientationAngle.y, Vec3f(1, 0, 0));
+    orientation = glm::rotate(orientation, mOrientationAngle.x, Vec3f(0, 1, 0));
+    return orientation;
+}
 
+void Camera::lookAt(Vec3f position)
+{
+    if (mPos == position)
+    {
+        std::cout << "MEGA ERROR: You are trying to look at your origin" << std::endl;
+        return;
+    }
 
-	void Camera::render()
-	{
-		if (pIsLoading)
-		{
-			qWarning("Trying to render Camera while loading...rendering canceled.");
-			return;
-		}
+    Vec3f direction = glm::normalize(position - mPos);
+    mOrientationAngle.y = asinf(-direction.y);
+    mOrientationAngle.x = -atan2f(-direction.x, -direction.z);
+    normalizeAngles();
+}
 
-		glEnable(GL_DEPTH_TEST);
-		glDepthMask(GL_TRUE);
-		glDepthFunc(GL_LEQUAL);
+Vec3f Camera::forward() const
+{
+    return Vec3f(glm::inverse(orientaion()) * Vec4f(0, 0, -1, 1));
+}
 
-		glClearColor(1.0f, 0.9f, 0.8f , 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+Vec3f Camera::right() const
+{
+    return Vec3f(glm::inverse(orientaion()) * Vec4f(1, 0, 0, 1));
+}
 
-        mTerrainRenderer.render(pPos, viewMatrix(), perspectiveMatrix());
-		
-        mEntityRenderer.renderAll(totalMatrix());
-        mEnvironment->assetManager().renderAllQueued();
+Vec3f Camera::up() const
+{
+    return Vec3f(glm::inverse(orientaion()) * Vec4f(0, 1, 0, 1));
+}
 
-		emit finishedRendering();
-	}
+Mat4 Camera::totalMatrix() const
+{
+    return perspectiveMatrix() * viewMatrix();
+}
 
+Mat4 Camera::perspectiveMatrix() const
+{
+    return glm::perspective<float>(mFieldOfView, mAspectRatio, mNearPlane, mFarPlane);
+}
 
-	void Camera::resize(unsigned windowWidth, unsigned windowHeight)
-	{
-		pAspectRatio = (float)windowWidth / (float)windowHeight;
-		glViewport(0, 0, (GLsizei)windowWidth, (GLsizei)windowHeight);
-	}
+Mat4 Camera::viewMatrix() const
+{
+    return orientaion() * glm::translate(Mat4(1.0f), -mPos);
+}
 
+void Camera::normalizeAngles()
+{
+    mOrientationAngle.x = fmodf(mOrientationAngle.x, glm::pi<float>() * 2.0f);
 
-	void Camera::reloadShaders()
-	{
-        vbase::Loadable::Begin b(this);
-		mTerrainRenderer.reloadShaders();
-	}
+    if (mOrientationAngle.x < 0.0f)
+        mOrientationAngle.x += glm::pi<float>() * 2.0f;
 
+    if (mOrientationAngle.y > mMaxVerticalAngle)
+        mOrientationAngle.y = mMaxVerticalAngle;
+    else if (mOrientationAngle.y < -mMaxVerticalAngle)
+        mOrientationAngle.y = -mMaxVerticalAngle;
+}
 
-	Mat4 Camera::orientaion() const
-	{
-		Mat4 orientation;
-		orientation = glm::rotate(orientation, pOrientationAngle().y, Vec3f(1, 0, 0));
-		orientation = glm::rotate(orientation, pOrientationAngle().x, Vec3f(0, 1, 0));
-		return orientation;
-	}
-
-
-	void Camera::lookAt(Vec3f position)
-	{
-		if (pPos == position)
-		{
-			std::cout << "MEGA ERROR: You are trying to look at your origin" << std::endl;
-			return;
-		}
-
-		Vec3f direction = glm::normalize(position - pPos);
-        pOrientationAngle().y = vbase::radToDeg(asinf(-direction.y));
-        pOrientationAngle().x = -vbase::radToDeg(atan2f(-direction.x, -direction.z));
-		normalizeAngles();
-	}
-
-
-	Vec3f Camera::forward() const
-	{
-		return Vec3f(glm::inverse(orientaion()) * Vec4f(0, 0, -1, 1));
-	}
-
-
-	Vec3f Camera::right() const
-	{
-		return Vec3f(glm::inverse(orientaion()) * Vec4f(1, 0, 0, 1));
-	}
-
-
-	Vec3f Camera::up() const
-	{
-		return Vec3f(glm::inverse(orientaion()) * Vec4f(0, 1, 0, 1));
-	}
-
-
-	///// PRIVATE
-
-	Mat4 Camera::totalMatrix() const
-	{
-		return perspectiveMatrix() * viewMatrix();
-	}
-
-
-	Mat4 Camera::perspectiveMatrix() const
-	{
-		return glm::perspective<float>(pFieldOfView, pAspectRatio, pNearPlane, pFarPlane);
-	}
-
-
-	Mat4 Camera::viewMatrix() const
-	{
-		return orientaion() * glm::translate(Mat4(), -pPos);
-	}
-
-
-	void Camera::normalizeAngles()
-	{
-		pOrientationAngle().x = fmodf(pOrientationAngle().x, 360.0f);
-		if (pOrientationAngle().x < 0.0f)
-			pOrientationAngle().x += 360.0f;
-
-		if (pOrientationAngle().y > pMaxVerticalAngle)
-			pOrientationAngle().y = pMaxVerticalAngle;
-		else if (pOrientationAngle().y < -pMaxVerticalAngle)
-			pOrientationAngle().y = -pMaxVerticalAngle;
-	}
-}}
+}
